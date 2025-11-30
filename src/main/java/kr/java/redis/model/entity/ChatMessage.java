@@ -3,7 +3,7 @@ package kr.java.redis.model.entity;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 채팅 메시지 데이터 모델
@@ -22,5 +22,5 @@ public class ChatMessage implements Serializable {
     private String message;
 
     // 메시지 전송 시간
-    private LocalDateTime timestamp;
+    private Instant timestamp;
 }

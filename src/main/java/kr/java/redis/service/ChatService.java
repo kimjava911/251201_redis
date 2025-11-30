@@ -5,7 +5,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -76,7 +76,7 @@ public class ChatService {
      */
     public ChatMessage sendMessage(ChatMessage message, String nickname) {
         message.setSenderId(nickname); // 세션 ID 대신 닉네임 사용
-        message.setTimestamp(LocalDateTime.now());
+        message.setTimestamp(Instant.now()); // UTC 시간으로 현재 시각 기록
 
         // 1. 메시지 객체를 개별 키로 저장하고 5분 TTL 설정
         String messageKey = MESSAGE_KEY_PREFIX + UUID.randomUUID().toString();

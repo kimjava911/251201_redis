@@ -3,7 +3,14 @@ package kr.java.redis.config;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import kr.java.redis.model.entity.ChatMessage;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +19,10 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate; // New Import
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.io.IOException;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Spring Data Redis 설정을 담당하는 Configuration 클래스
@@ -25,8 +36,28 @@ public class RedisConfig {
     @Bean
     public ObjectMapper redisObjectMapper() {
         final ObjectMapper mapper = new ObjectMapper();
-        // LocalDateTime 직렬화 문제를 해결하기 위해 JavaTimeModule 등록
+
+        // Instant 타입을 위한 커스텀 직렬화/역직렬화 모듈 생성
+        SimpleModule instantModule = new SimpleModule();
+        instantModule.addSerializer(Instant.class, new JsonSerializer<>() {
+            @Override
+            public void serialize(Instant instant, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+                // 항상 'Z'가 포함된 ISO_INSTANT 형식으로 직렬화
+                jsonGenerator.writeString(DateTimeFormatter.ISO_INSTANT.format(instant));
+            }
+        });
+        instantModule.addDeserializer(Instant.class, new JsonDeserializer<>() {
+            @Override
+            public Instant deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
+                // ISO-8601 형식의 문자열을 Instant 객체로 파싱
+                return Instant.parse(jsonParser.getText());
+            }
+        });
+
+        // 커스텀 모듈을 기본 모듈보다 먼저 등록하여 Instant 타입에 대한 처리를 우선 적용합니다.
+        mapper.registerModule(instantModule);
         mapper.registerModule(new JavaTimeModule());
+
         // 날짜/시간 객체를 숫자 배열(타임스탬프) 대신 ISO 8601 문자열로 직렬화하도록 강제합니다.
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return mapper;

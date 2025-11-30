@@ -2,10 +2,6 @@
 <%@ page import="java.util.List" %>
 <%@ page import="kr.java.redis.model.entity.ChatMessage" %>
 <%@ page import="java.time.format.DateTimeFormatter" %>
-<%!
-    // JSP에서 사용할 날짜 포맷터 선언 (스크립틀릿 전용)
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
-%>
 <%
     // Controller에서 Model에 담아 전달한 속성들을 스크립틀릿으로 가져옵니다.
     String sessionId = (String) request.getAttribute("senderId"); // Use sessionId for form hidden field
@@ -45,12 +41,12 @@
             for (int i = messages.size() - 1; i >= 0; i--) {
                 ChatMessage msg = messages.get(i);
     %>
-    <p>
-        [<%= msg.getTimestamp().format(FORMATTER) %>]
-        <b><%= msg.getSenderId() %></b>: <%= msg.getMessage() %>
-    </p>
+    <%-- JavaScript가 렌더링할 수 있도록 data-* 속성에 데이터를 저장합니다. --%>
+    <p class="message-item"
+       data-timestamp="<%= msg.getTimestamp() %>"
+       data-sender="<%= msg.getSenderId() %>"
+       data-message="<%= msg.getMessage() %>"></p>
     <%
-
             }
         }
     %>
@@ -58,7 +54,35 @@
 
 <script>
     // DOM 요소 가져오기
+    const messageItems = document.querySelectorAll('.message-item');
     const messageArea = document.getElementById('messageArea');
+
+    /**
+     * ISO 8601 형식의 UTC 시간 문자열을 브라우저의 로컬 시간으로 변환합니다.
+     * @param {string} utcTimestamp - UTC 시간 문자열 (e.g., "2025-11-30T10:20:30Z")
+     * @returns {string} 포맷된 시간 문자열
+     */
+    function formatTimestamp(utcTimestamp) {
+        const dateObject = new Date(utcTimestamp);
+        if (isNaN(dateObject.getTime())) {
+            console.error('Invalid Date for timestamp:', utcTimestamp);
+            return '시간 오류';
+        }
+        return dateObject.toLocaleTimeString(navigator.language, { // 브라우저 기본 로캘 사용
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+        });
+    }
+
+    /**
+     * JSP를 통해 전달된 초기 메시지를 JavaScript로 렌더링합니다.
+     */
+    function renderInitialMessages() {
+        messageItems.forEach(item => {
+            const time = formatTimestamp(item.dataset.timestamp); // JSP EL과의 충돌을 피하기 위해 `$`를 이스케이프 처리합니다.
+            item.innerHTML = `[\${time}] <b>\${item.dataset.sender}</b>: \${item.dataset.message}`;
+        });
+    }
+
     // 메시지 영역 스크롤을 항상 아래로 이동
     function scrollToBottom() {
         messageArea.scrollTop = messageArea.scrollHeight;
@@ -94,29 +118,10 @@
             for (let i = messages.length - 1; i >= 0; i--) { // let 사용
                 const msg = messages[i];
                 const messageElement = document.createElement('p');
+                const time = formatTimestamp(msg.timestamp); // UTC -> Local Time
 
-                // 날짜 형식 지정 (Javascript Date 객체 사용)
-                // new Date()가 YYYY-MM-DDTHH:mm:ss 형태를 불안정하게 파싱하므로,
-                // 'T' 문자를 공백(' ')으로 대체하여 파싱 호환성을 높입니다.
-                const reliableDateString = msg.timestamp.toString().replace('T', ' ');
-                const dateObject = new Date(reliableDateString);
-                // 새로운 Date 객체 생성
-
-                let time;
-                // 파싱이 유효한지 확인 (Invalid Date가 아닌지 체크)
-                if (isNaN(dateObject.getTime())) {
-                    time = '시간 오류';
-                    console.error('Invalid Date for timestamp:', msg.timestamp);
-                } else {
-                    // 성공적으로 파싱되면 원하는 형식으로 포맷
-                    time = dateObject.toLocaleTimeString('ko-KR', {
-                        hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false
-                    });
-                }
-
-                // 문자열 연결(+) 방식으로 HTML 내용을 생성하여 EL로 인식될 가능성을 완전히 제거
-                messageElement.innerHTML = '[' + time + '] ' + '<b>' + msg.senderId + '</b>: ' +
-                    msg.message;
+                // 템플릿 리터럴을 사용하되, JSP EL과의 충돌을 피하기 위해 `$`를 이스케이프 처리합니다.
+                messageElement.innerHTML = `[\${time}] <b>\${msg.senderId}</b>: \${msg.message}`;
                 messageArea.appendChild(messageElement);
             }
 
@@ -129,7 +134,9 @@
 
     // 페이지 로드 시 스크롤
     window.onload = function() {
+        renderInitialMessages(); // 초기 메시지 렌더링
         scrollToBottom();
+
         // 2초마다 메시지 갱신을 시작합니다. (Polling)
         setInterval(fetchMessages, 2000);
     };
