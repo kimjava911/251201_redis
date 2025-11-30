@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate; // New Import
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -29,6 +30,17 @@ public class RedisConfig {
         // 날짜/시간 객체를 숫자 배열(타임스탬프) 대신 ISO 8601 문자열로 직렬화하도록 강제합니다.
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return mapper;
+    }
+
+    /**
+     * String 기반의 Key/Value 작업을 위한 RedisTemplate 설정 (닉네임 관리 등에 사용)
+     */
+    @Bean
+    public StringRedisTemplate stringRedisTemplate(
+            RedisConnectionFactory connectionFactory) {
+        StringRedisTemplate template = new StringRedisTemplate();
+        template.setConnectionFactory(connectionFactory);
+        return template;
     }
 
     /**
