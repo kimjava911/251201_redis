@@ -67,6 +67,11 @@
             <artifactId>tomcat-embed-jasper</artifactId>
             <version>11.0.14</version>
         </dependency>
+        <!-- java.time.LocalDateTime -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
